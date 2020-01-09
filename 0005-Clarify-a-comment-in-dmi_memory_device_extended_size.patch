@@ -1,0 +1,29 @@
+From 5696fa33e5f9fce843fa3b5972b87a705fed2067 Mon Sep 17 00:00:00 2001
+From: Jean Delvare <jdelvare@suse.de>
+Date: Wed, 7 Sep 2016 22:16:16 +0200
+Subject: [PATCH 5/9] Clarify a comment in dmi_memory_device_extended_size
+
+Improve the comment to avoid the confusion as reported in bug #48723:
+http://savannah.nongnu.org/bugs/?48723
+---
+ dmidecode.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/dmidecode.c b/dmidecode.c
+index f56d0c5..f929b28 100644
+--- a/dmidecode.c
++++ b/dmidecode.c
+@@ -2277,7 +2277,10 @@ static void dmi_memory_device_extended_size(u32 code)
+ {
+	code &= 0x7FFFFFFFUL;
+
+-	/* Use the most suitable unit depending on size */
++	/*
++	 * Use the greatest unit for which the exact value can be displayed
++	 * as an integer without rounding
++	 */
+	if (code & 0x3FFUL)
+		printf(" %lu MB", (unsigned long)code);
+	else if (code & 0xFFFFFUL)
+--
+2.10.2

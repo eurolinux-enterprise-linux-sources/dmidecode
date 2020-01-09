@@ -1,7 +1,7 @@
 Summary:        Tool to analyse BIOS DMI data
 Name:           dmidecode
 Version:        3.0
-Release:        2%{?dist}
+Release:        5%{?dist}
 Epoch:          1
 Group:          System Environment/Base
 License:        GPLv2+
@@ -17,7 +17,16 @@ Patch6:         0007-Let-read_file-return-the-actual-data-size.patch
 Patch7:         0008-dmidecode-Use-read_file-to-read-the-DMI-table-from-s.patch
 Patch8:         0009-dmidecode-Check-sysfs-entry-point-length.patch
 Patch9:         0010-Use-DWORD-for-Structure-table-maximum-size-in-SMBIOS.patch
-Patch10:        0001-dmidecode-Unmask-LRDIMM-in-memmory-type-detail.patch
+Patch10:        0001-dmidecode-Hide-irrelevant-fixup-message.patch
+Patch11:        0002-dmidecode-Unmask-LRDIMM-in-memory-type-detail.patch
+Patch12:        0003-dmidecode-Clarify-error-message-on-table-read-failur.patch
+Patch13:        0004-dmidecode-Move-error-messages-to-stderr.patch
+Patch14:        0005-Clarify-a-comment-in-dmi_memory_device_extended_size.patch
+Patch15:        0006-Prevent-static-code-analyzer-confusion.patch
+Patch16:        0007-Cygwin-is-no-longer-supported.patch
+Patch17:        0008-Only-decode-one-DMI-table.patch
+Patch18:        0009-biosdecode-Decode-Intel-Multiprocessor-entry-point.patch
+
 Buildroot:      %{_tmppath}/%{name}-%{version}-root
 BuildRequires:  automake autoconf
 ExclusiveArch:  %{ix86} x86_64 ia64 aarch64
@@ -45,10 +54,18 @@ I/O ports (e.g. serial, parallel, USB).
 %patch7 -p1 -b .read_file
 %patch8 -p1 -b .sysfs_entry_check
 %patch9 -p1 -b .dword
-%patch10 -p1 -b .fix_lrdimm
+%patch10 -p1
+%patch11 -p1
+%patch12 -p1
+%patch13 -p1
+%patch14 -p1
+%patch15 -p1
+%patch16 -p1
+%patch17 -p1
+%patch18 -p1
 
 %build
-make %{?_smp_mflags} CFLAGS="$RPM_OPT_FLAGS"
+make %{?_smp_mflags} CFLAGS="$RPM_OPT_FLAGS -fPIE" LDFLAGS="-pie -Wl,-z,now"
 
 %install
 rm -rf ${buildroot}
@@ -70,6 +87,18 @@ rm -rf ${buildroot}
 %{_mandir}/man8/*
 
 %changelog
+* Wed May 3 2017 Petr Oros <poros@redhat.com> - 1:3.0-5
+- Update compiler flags for hardened builds
+- Resolves: #1420763
+
+* Tue Feb 28 2017 Petr Oros <poros@redhat.com> - 1:3.0-4
+- Sync with upstream
+- Resolves: #1385884
+
+* Tue Nov 8 2016 Petr Oros <poros@redhat.com> - 1:3.0-3
+- Hide irrelevant fixup message
+- Resolves: #1384195
+
 * Wed Jun 29 2016 Petr Oros <poros@redhat.com> - 1:3.0-2
 - Unmask LRDIMM in memmory type detail
 - Resolves: #1321342
