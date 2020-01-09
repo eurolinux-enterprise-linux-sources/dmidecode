@@ -1,7 +1,7 @@
 Summary:        Tool to analyse BIOS DMI data
 Name:           dmidecode
 Version:        2.12
-Release:        5%{?dist}.1
+Release:        6%{?dist}
 Epoch:          1
 Group:          System Environment/Base
 License:        GPLv2+
@@ -51,13 +51,13 @@ rm -rf ${buildroot}
 %{_mandir}/man8/*
 
 %changelog
-* Wed Jun 10 2015 Petr Oros <poros@redhat.com> - 2.12-5.1
-- Bump to right version number
-- Resolves: #1229722
+* Thu Apr 2 2015 Petr Oros <poros@redhat.com> - 2.12-6
+- Respin for replace older version
+- Resolves: #1192357
 
-* Wed Jun 10 2015 Petr Oros <poros@redhat.com> - 2.12-4.1
+* Wed Apr 1 2015 Petr Oros <poros@redhat.com> - 2.12-5
 - Update dmidecode in RHEL 6 to support DDR4 memory
-- Resolves: #1229722
+- Resolves: #1192357
 
 * Thu Feb 20 2014 Anton Arapov <anton@redhat.com> - 2.12-4
 - Rebuild for RHEL-6.6
