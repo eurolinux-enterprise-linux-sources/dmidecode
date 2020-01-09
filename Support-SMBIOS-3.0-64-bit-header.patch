@@ -1,0 +1,229 @@
+From 59820aacf5f9bcfde98753fde79ca2c779d755aa Mon Sep 17 00:00:00 2001
+From: Mark Salter <msalter@redhat.com>
+Date: Tue, 24 Feb 2015 23:42:05 -0500
+Subject: [PATCH] Support SMBIOS 3.0 64-bit header
+
+The SMBIOS 64-bit header adds suport for a 64-bit base address for the
+SMBIOS tables. This patch adds code to parse deal with older 32-bit
+headers and well as the 64-bit header. It also fixes 32-bit address
+assumptions in a number of places.
+
+Signed-off-by: Mark Salter <msalter@redhat.com>
+---
+ dmidecode.c | 143 +++++++++++++++++++++++++++++++++++++++++++++++-------------
+ 1 file changed, 112 insertions(+), 31 deletions(-)
+
+diff --git a/dmidecode.c b/dmidecode.c
+index fee3af1..6865cd7 100644
+--- a/dmidecode.c
++++ b/dmidecode.c
+@@ -4277,7 +4277,10 @@ static u16 get_smbios_version(unsigned char *smbios)
+ {
+	u16 ver;
+
+-	ver = (smbios[0x06] << 8) + smbios[0x07];
++	if (!memcmp(smbios, "_SM3_", 5))
++		ver = (smbios[0x07] << 8) + smbios[0x08];
++	else
++		ver = (smbios[0x06] << 8) + smbios[0x07];
+
+	/* Some BIOS report weird SMBIOS version, fix that up */
+	switch (ver) {
+@@ -4348,7 +4351,33 @@ static void dmi_table_dump(u8 *buf, u16 len)
+	write_dump(32, len, buf, opt.dumpfile, 0);
+ }
+
+-static void dmi_table(u32 base, u8 *buf, u16 len, u16 num, u16 ver)
++static u16 dmi_table_count(u8 *buf, u16 len)
++{
++	u8 *data;
++	u16 i = 0;
++
++	data = buf;
++	while (data+4 <= buf + len) /* 4 is the length of an SMBIOS structure header */
++	{
++		struct dmi_header h;
++
++		++i;
++
++		to_dmi_header(&h, data);
++
++		if (h.length < 4)
++			break;
++
++		/* look for the next handle */
++		data += h.length;
++		while (data - buf + 1 < len && (data[0] != 0 || data[1] != 0))
++			data++;
++		data += 2;
++	}
++	return i;
++}
++
++static void dmi_table(u64 base, u8 *buf, u16 len, u16 num, u16 ver)
+ {
+	u8 *data;
+	int i = 0;
+@@ -4372,8 +4401,13 @@ static void dmi_table(u32 base, u8 *buf, u16 len, u16 num, u16 ver)
+		{
+			printf("%u structures occupying %u bytes.\n",
+				num, len);
+-			if (!(opt.flags & FLAG_FROM_DUMP))
+-				printf("Table at 0x%08X.\n", base);
++			if (!(opt.flags & FLAG_FROM_DUMP)) {
++				if (base.h)
++					printf("Table at 0x%08X%08X.\n",
++					       base.h, base.l);
++				else
++					printf("Table at 0x%08X.\n", base.l);
++			}
+		}
+		printf("\n");
+	}
+@@ -4460,15 +4494,19 @@ static void dmi_table(u32 base, u8 *buf, u16 len, u16 num, u16 ver)
+ /*
+  * Build a crafted entry point with table address hard-coded to 32,
+  * as this is where we will put it in the output file. We adjust the
+- * DMI checksum appropriately. The SMBIOS checksum needs no adjustment.
++ * checksum appropriately.
+  */
+-static void overwrite_dmi_address(u8 *buf)
++static void overwrite_address(u8 *cksum, u8 *addr, int addr_len)
+ {
+-	buf[0x05] += buf[0x08] + buf[0x09] + buf[0x0A] + buf[0x0B] - 32;
+-	buf[0x08] = 32;
+-	buf[0x09] = 0;
+-	buf[0x0A] = 0;
+-	buf[0x0B] = 0;
++	int i;
++
++	*cksum += addr[0] - 32;
++	addr[0] = 32;
++
++	for (i = 1; i < addr_len; ++i) {
++		*cksum += addr[i];
++		addr[i] = 0;
++	}
+ }
+
+ /**
+@@ -4478,36 +4516,51 @@ static void overwrite_dmi_address(u8 *buf)
+ static void smbios_in_dumpfile(unsigned char *smbios)
+ {
+	u8 crafted[32];
++	u8 len;
+
+	memcpy(crafted, smbios, 32);
+-	overwrite_dmi_address(crafted + 0x10);
++	if (!memcmp(smbios, "_SM3_", 5)) {
++		overwrite_address(crafted + 0x05, crafted + 0x10, 8);
++		len = crafted[0x06];
++	} else {
++		overwrite_address(crafted + 0x15, crafted + 0x18, 4);
++		len = crafted[0x05];
++	}
+
+	if (!(opt.flags & FLAG_QUIET))
+		printf("# Writing %d bytes to %s.\n", crafted[0x05],
+		       opt.dumpfile);
+
+-	write_dump(0, crafted[0x05], crafted, opt.dumpfile, 1);
++	write_dump(0, len, crafted, opt.dumpfile, 1);
+ }
+
+ static int smbios_decode(u8 *buf, const char *devmem)
+ {
+	u16 ver;
+-	u16 len;
+-	u32 base;
++	u16 len, num;
++	u64 base;
+	u8 *dmibuf;
+
+-	if (!checksum(buf, buf[0x05])
+-	 || memcmp(buf + 0x10, "_DMI_", 5) != 0
+-	 || !checksum(buf + 0x10, 0x0F))
+-		return 0;
++	if (!memcmp(buf, "_SM3_", 5)) {
++		if (!checksum(buf, buf[0x06]))
++			return 0;
++		base = QWORD(buf + 0x10);
++		len = WORD(buf + 0x0C);
++	} else {
++		if (!checksum(buf, buf[0x05])
++		    || memcmp(buf + 0x10, "_DMI_", 5) != 0
++		    || !checksum(buf + 0x10, 0x0F))
++			return 0;
++		base.h = 0;
++		base.l = DWORD(buf + 0x18);
++		len = WORD(buf + 0x16);
++	}
+
+	ver = get_smbios_version(buf);
+-
+-	base = DWORD(buf + 0x18);
+-	len = WORD(buf + 0x16);
+-	dmibuf = mem_chunk(base, len, devmem);
++	dmibuf = mem_chunk(base.l, len, devmem);
+	if (!dmibuf) {
+		fprintf(stderr, "Table is unreachable, sorry."
++
+ #ifndef USE_MMAP
+			" Try compiling dmidecode with -DUSE_MMAP."
+ #endif
+@@ -4515,7 +4568,13 @@ static int smbios_decode(u8 *buf, const char *devmem)
+		return 0;
+	}
+
+-	dmi_table(base, dmibuf, len, WORD(buf + 0x1C), ver);
++	/* version 3 64-bit header doesn't have number of tables */
++	if (!memcmp(buf, "_SM3_", 5))
++		num = dmi_table_count(dmibuf, len);
++	else
++		num = WORD(buf + 0x1C);
++
++	dmi_table(base, dmibuf, len, num, ver);
+
+	free(dmibuf);
+
+@@ -4528,7 +4608,7 @@ static void dmifs_smbios_decode(void)
+ static int legacy_decode(u8 *buf, const char *devmem)
+ {
+	u16 len;
+-	u32 base;
++	u64 base;
+	u8 *dmibuf;
+
+	if (!checksum(buf, 0x0F))
+@@ -4539,8 +4619,9 @@ static int legacy_decode(u8 *buf, const char *devmem)
+			buf[0x0E] >> 4, buf[0x0E] & 0x0F);
+
+	len = WORD(buf + 0x06);
+-	base = DWORD(buf + 0x08);
+-	dmibuf = mem_chunk(base, len, devmem);
++	base.h = 0;
++	base.l = DWORD(buf + 0x08);
++	dmibuf = mem_chunk(base.l, len, devmem);
+	if (!dmibuf) {
+		fprintf(stderr, "Table is unreachable, sorry."
+ #ifndef USE_MMAP
+@@ -4560,7 +4641,7 @@ static int legacy_decode(u8 *buf, const char *devmem)
+		u8 crafted[16];
+
+		memcpy(crafted, buf, 16);
+-		overwrite_dmi_address(crafted);
++		overwrite_address(crafted + 0x05, crafted + 0x08, 4);
+
+		printf("# Writing %d bytes to %s.\n", 0x0F, opt.dumpfile);
+		write_dump(0, 0x0F, crafted, opt.dumpfile, 1);
+@@ -4667,7 +4748,7 @@ int main(int argc, char * const argv[])
+			goto exit_free;
+		}
+
+-		if (memcmp(buf, "_SM_", 4) == 0)
++		if (memcmp(buf, "_SM_", 4) == 0 || memcmp(buf, "_SM3_", 5) == 0)
+		{
+			if (smbios_decode(buf, opt.dumpfile))
+				found++;
+--
+1.8.3.1

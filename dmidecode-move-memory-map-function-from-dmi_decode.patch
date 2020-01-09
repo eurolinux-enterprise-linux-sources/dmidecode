@@ -1,0 +1,154 @@
+From 9967415630f6e58da27ebd33a32d1f1bb1f6ba78 Mon Sep 17 00:00:00 2001
+From: Ivan Khoronzhuk <ivan.khoronzhuk@linaro.org>
+Date: Thu, 15 Jan 2015 22:39:26 +0200
+Subject: [PATCH 3/4] dmidecode: move memory map function from dmi_decode
+
+There is no reason to allocate/copy/free memory for dmi_table inside
+function. It's more convenient to do it outside. In this case we can
+use dmi_decode function with already allocated memory like in case
+with dmifs library. The same is for dmi_table_dump().
+
+Signed-off-by: Ivan Khoronzhuk <ivan.khoronzhuk@linaro.org>
+---
+ dmidecode.c | 70 ++++++++++++++++++++++++++++++++++++-------------------------
+ 1 file changed, 41 insertions(+), 29 deletions(-)
+
+diff --git a/dmidecode.c b/dmidecode.c
+index 4e4a82f..2fedddc 100644
+--- a/dmidecode.c
++++ b/dmidecode.c
+@@ -4341,25 +4341,15 @@ static void dmi_table_string(const struct dmi_header *h, const u8 *data, u16 ver
+	}
+ }
+
+-static void dmi_table_dump(u32 base, u16 len, const char *devmem)
++static void dmi_table_dump(u8 *buf, u16 len)
+ {
+-	u8 *buf;
+-
+-	if ((buf = mem_chunk(base, len, devmem)) == NULL)
+-	{
+-		fprintf(stderr, "Failed to read table, sorry.\n");
+-		return;
+-	}
+-
+	if (!(opt.flags & FLAG_QUIET))
+		printf("# Writing %d bytes to %s.\n", len, opt.dumpfile);
+	write_dump(32, len, buf, opt.dumpfile, 0);
+-	free(buf);
+ }
+
+-static void dmi_table(u32 base, u16 len, u16 num, u16 ver, const char *devmem)
++static void dmi_table(u32 base, u8 *buf, u16 len, u16 num, u16 ver)
+ {
+-	u8 *buf;
+	u8 *data;
+	int i = 0;
+
+@@ -4372,7 +4362,7 @@ static void dmi_table(u32 base, u16 len, u16 num, u16 ver, const char *devmem)
+
+	if (opt.flags & FLAG_DUMP_BIN)
+	{
+-		dmi_table_dump(base, len, devmem);
++		dmi_table_dump(buf, len);
+		return;
+	}
+
+@@ -4388,16 +4378,6 @@ static void dmi_table(u32 base, u16 len, u16 num, u16 ver, const char *devmem)
+		printf("\n");
+	}
+
+-	if ((buf = mem_chunk(base, len, devmem)) == NULL)
+-	{
+-		fprintf(stderr, "Table is unreachable, sorry."
+-#ifndef USE_MMAP
+-			" Try compiling dmidecode with -DUSE_MMAP."
+-#endif
+-			"\n");
+-		return;
+-	}
+-
+	data = buf;
+	while (i < num && data+4 <= buf + len) /* 4 is the length of an SMBIOS structure header */
+	{
+@@ -4475,8 +4455,6 @@ static void dmi_table(u32 base, u16 len, u16 num, u16 ver, const char *devmem)
+				"announced, structures occupy %d bytes.\n",
+				len, (unsigned int)(data - buf));
+	}
+-
+-	free(buf);
+ }
+
+ /*
+@@ -4514,6 +4492,9 @@ static void smbios_in_dumpfile(unsigned char *smbios)
+ static int smbios_decode(u8 *buf, const char *devmem)
+ {
+	u16 ver;
++	u16 len;
++	u32 base;
++	u8 *dmibuf;
+
+	if (!checksum(buf, buf[0x05])
+	 || memcmp(buf + 0x10, "_DMI_", 5) != 0
+@@ -4522,8 +4503,21 @@ static int smbios_decode(u8 *buf, const char *devmem)
+
+	ver = get_smbios_version(buf);
+
+-	dmi_table(DWORD(buf + 0x18), WORD(buf + 0x16), WORD(buf + 0x1C),
+-		ver, devmem);
++	base = DWORD(buf + 0x18);
++	len = WORD(buf + 0x16);
++	dmibuf = mem_chunk(base, len, devmem);
++	if (!dmibuf) {
++		fprintf(stderr, "Table is unreachable, sorry."
++#ifndef USE_MMAP
++			" Try compiling dmidecode with -DUSE_MMAP."
++#endif
++			"\n");
++		return 0;
++	}
++
++	dmi_table(base, dmibuf, len, WORD(buf + 0x1C), ver);
++
++	free(dmibuf);
+
+	if (opt.flags & FLAG_DUMP_BIN)
+		smbios_in_dumpfile(buf);
+@@ -4533,6 +4527,10 @@ static int smbios_decode(u8 *buf, const char *devmem)
+
+ static int legacy_decode(u8 *buf, const char *devmem)
+ {
++	u16 len;
++	u32 base;
++	u8 *dmibuf;
++
+	if (!checksum(buf, 0x0F))
+		return 0;
+
+@@ -4540,8 +4538,22 @@ static int legacy_decode(u8 *buf, const char *devmem)
+		printf("Legacy DMI %u.%u present.\n",
+			buf[0x0E] >> 4, buf[0x0E] & 0x0F);
+
+-	dmi_table(DWORD(buf + 0x08), WORD(buf + 0x06), WORD(buf + 0x0C),
+-		((buf[0x0E] & 0xF0) << 4) + (buf[0x0E] & 0x0F), devmem);
++	len = WORD(buf + 0x06);
++	base = DWORD(buf + 0x08);
++	dmibuf = mem_chunk(base, len, devmem);
++	if (!dmibuf) {
++		fprintf(stderr, "Table is unreachable, sorry."
++#ifndef USE_MMAP
++			" Try compiling dmidecode with -DUSE_MMAP."
++#endif
++			"\n");
++		return 0;
++	}
++
++	dmi_table(base, dmibuf, len, WORD(buf + 0x0C),
++		  ((buf[0x0E] & 0xF0) << 4) + (buf[0x0E] & 0x0F));
++
++	free(dmibuf);
+
+	if (opt.flags & FLAG_DUMP_BIN)
+	{
+--
+1.9.3

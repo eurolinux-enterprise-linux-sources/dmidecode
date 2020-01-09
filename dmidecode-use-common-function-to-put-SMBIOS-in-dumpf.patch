@@ -1,0 +1,63 @@
+From d4a148740afb211dc519945a8fc8b5eaa0adf280 Mon Sep 17 00:00:00 2001
+From: Ivan Khoronzhuk <ivan.khoronzhuk@linaro.org>
+Date: Thu, 15 Jan 2015 02:28:22 +0200
+Subject: [PATCH 2/4] dmidecode: use common function to put SMBIOS in dumpfile
+
+It's needed in order to generalize code before adding dmi sysfs
+support. It' more convenient to hold common code in separate function.
+
+Signed-off-by: Ivan Khoronzhuk <ivan.khoronzhuk@linaro.org>
+---
+ dmidecode.c | 30 +++++++++++++++++++-----------
+ 1 file changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/dmidecode.c b/dmidecode.c
+index c4b4fd1..4e4a82f 100644
+--- a/dmidecode.c
++++ b/dmidecode.c
+@@ -4493,6 +4493,24 @@ static void overwrite_dmi_address(u8 *buf)
+	buf[0x0B] = 0;
+ }
+
++/**
++ * smbios_in_dumpfile - put SMBIOS entry table in dump file
++ * @smbios: pointer on SMBIOS entry table
++ */
++static void smbios_in_dumpfile(unsigned char *smbios)
++{
++	u8 crafted[32];
++
++	memcpy(crafted, smbios, 32);
++	overwrite_dmi_address(crafted + 0x10);
++
++	if (!(opt.flags & FLAG_QUIET))
++		printf("# Writing %d bytes to %s.\n", crafted[0x05],
++		       opt.dumpfile);
++
++	write_dump(0, crafted[0x05], crafted, opt.dumpfile, 1);
++}
++
+ static int smbios_decode(u8 *buf, const char *devmem)
+ {
+	u16 ver;
+@@ -4508,17 +4526,7 @@ static int smbios_decode(u8 *buf, const char *devmem)
+		ver, devmem);
+
+	if (opt.flags & FLAG_DUMP_BIN)
+-	{
+-		u8 crafted[32];
+-
+-		memcpy(crafted, buf, 32);
+-		overwrite_dmi_address(crafted + 0x10);
+-
+-		if (!(opt.flags & FLAG_QUIET))
+-			printf("# Writing %d bytes to %s.\n", crafted[0x05],
+-				opt.dumpfile);
+-		write_dump(0, crafted[0x05], crafted, opt.dumpfile, 1);
+-	}
++		smbios_in_dumpfile(buf);
+
+	return 1;
+ }
+--
+1.9.3

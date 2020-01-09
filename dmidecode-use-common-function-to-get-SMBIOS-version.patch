@@ -1,0 +1,100 @@
+From db2e8e195c15ed0e56e6652c1b59fdd487d4fbb9 Mon Sep 17 00:00:00 2001
+From: Ivan Khoronzhuk <ivan.khoronzhuk@linaro.org>
+Date: Thu, 15 Jan 2015 01:14:43 +0200
+Subject: [PATCH 1/4] dmidecode: use common function to get SMBIOS version
+
+Move SMBIOS version code in separate function as it's more readable
+and can be used by others when it's required.
+In paticular, it can be used when dmi sysfs support is added.
+
+Signed-off-by: Ivan Khoronzhuk <ivan.khoronzhuk@linaro.org>
+---
+ dmidecode.c | 59 +++++++++++++++++++++++++++++++++++++----------------------
+ 1 file changed, 37 insertions(+), 22 deletions(-)
+
+diff --git a/dmidecode.c b/dmidecode.c
+index a5304a7..c4b4fd1 100644
+--- a/dmidecode.c
++++ b/dmidecode.c
+@@ -4267,6 +4267,42 @@ static void dmi_decode(const struct dmi_header *h, u16 ver)
+	printf("\n");
+ }
+
++/**
++ * get_smbios_version - get SMBIOS version
++ * @smbios: pointer on SMBIOS entry point table
++ *
++ * Returns SMBIOS version
++ */
++static u16 get_smbios_version(unsigned char *smbios)
++{
++	u16 ver;
++
++	ver = (smbios[0x06] << 8) + smbios[0x07];
++
++	/* Some BIOS report weird SMBIOS version, fix that up */
++	switch (ver) {
++	case 0x021F:
++	case 0x0221:
++		if (!(opt.flags & FLAG_QUIET))
++			printf("SMBIOS version fixup (2.%d -> 2.%d).\n",
++			       ver & 0xFF, 3);
++		ver = 0x0203;
++		break;
++	case 0x0233:
++		if (!(opt.flags & FLAG_QUIET))
++			printf("SMBIOS version fixup (2.%d -> 2.%d).\n",
++			       51, 6);
++		ver = 0x0206;
++		break;
++	}
++
++	if (!(opt.flags & FLAG_QUIET))
++		printf("SMBIOS %u.%u present.\n",
++		       ver >> 8, ver & 0xFF);
++
++	return ver;
++}
++
+ static void to_dmi_header(struct dmi_header *h, u8 *data)
+ {
+	h->type = data[0];
+@@ -4443,7 +4479,6 @@ static void dmi_table(u32 base, u16 len, u16 num, u16 ver, const char *devmem)
+	free(buf);
+ }
+
+-
+ /*
+  * Build a crafted entry point with table address hard-coded to 32,
+  * as this is where we will put it in the output file. We adjust the
+@@ -4467,27 +4502,7 @@ static int smbios_decode(u8 *buf, const char *devmem)
+	 || !checksum(buf + 0x10, 0x0F))
+		return 0;
+
+-	ver = (buf[0x06] << 8) + buf[0x07];
+-	/* Some BIOS report weird SMBIOS version, fix that up */
+-	switch (ver)
+-	{
+-		case 0x021F:
+-		case 0x0221:
+-			if (!(opt.flags & FLAG_QUIET))
+-				printf("SMBIOS version fixup (2.%d -> 2.%d).\n",
+-				       ver & 0xFF, 3);
+-			ver = 0x0203;
+-			break;
+-		case 0x0233:
+-			if (!(opt.flags & FLAG_QUIET))
+-				printf("SMBIOS version fixup (2.%d -> 2.%d).\n",
+-				       51, 6);
+-			ver = 0x0206;
+-			break;
+-	}
+-	if (!(opt.flags & FLAG_QUIET))
+-		printf("SMBIOS %u.%u present.\n",
+-			ver >> 8, ver & 0xFF);
++	ver = get_smbios_version(buf);
+
+	dmi_table(DWORD(buf + 0x18), WORD(buf + 0x16), WORD(buf + 0x1C),
+		ver, devmem);
+--
+1.9.3

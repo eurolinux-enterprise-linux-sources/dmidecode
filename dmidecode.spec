@@ -1,7 +1,7 @@
 Summary:        Tool to analyse BIOS DMI data
 Name:           dmidecode
 Version:        2.12
-Release:        6%{?dist}
+Release:        7%{?dist}
 Epoch:          1
 Group:          System Environment/Base
 License:        GPLv2+
@@ -9,6 +9,11 @@ Source0:        %{name}-%{version}.tar.bz2
 URL:            http://www.nongnu.org/dmidecode/
 Patch0:         dmidecode-2.12-smbios_fix.patch
 Patch1:         support-for-ddr4-mem.patch
+Patch2:         dmidecode-use-common-function-to-get-SMBIOS-version.patch
+Patch3:         dmidecode-use-common-function-to-put-SMBIOS-in-dumpf.patch
+Patch4:         dmidecode-move-memory-map-function-from-dmi_decode.patch
+Patch5:         Support-SMBIOS-3.0-64-bit-header.patch
+
 Buildroot:      %{_tmppath}/%{name}-%{version}-root
 BuildRequires:  automake autoconf
 ExclusiveArch:  %{ix86} x86_64 ia64
@@ -28,6 +33,10 @@ I/O ports (e.g. serial, parallel, USB).
 %setup -q
 %patch0 -p1 -b .smbios_fix
 %patch1 -p1
+%patch2 -p1 -b .smbios_ver
+%patch3 -p1 -b .smbios_dump
+%patch4 -p1 -b .smbios_memmap
+%patch5 -p1 -b .smbios3
 
 %build
 make %{?_smp_mflags} CFLAGS="$RPM_OPT_FLAGS"
@@ -51,6 +60,10 @@ rm -rf ${buildroot}
 %{_mandir}/man8/*
 
 %changelog
+* Wed Jan 13 2016 Petr Oros <poros@redhat.com> - 2.12-7
+- Add SMBIOS 3.0.0 support to dmidecode
+- Resolves: #1232558
+
 * Thu Apr 2 2015 Petr Oros <poros@redhat.com> - 2.12-6
 - Respin for replace older version
 - Resolves: #1192357
