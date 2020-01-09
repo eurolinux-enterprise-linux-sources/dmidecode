@@ -1,17 +1,16 @@
 Summary:        Tool to analyse BIOS DMI data
 Name:           dmidecode
-Version:        2.11
-Release:        2%{?dist}
+Version:        2.12
+Release:        5%{?dist}
 Epoch:          1
 Group:          System Environment/Base
 License:        GPLv2+
-Source0:        dmidecode-%{version}.tar.bz2
-Patch0:         dmidecode-smbios-2.7.1-updates.patch
+Source0:        %{name}-%{version}.tar.bz2
 URL:            http://www.nongnu.org/dmidecode/
+Patch0:         dmidecode-2.12-smbios_fix.patch
 Buildroot:      %{_tmppath}/%{name}-%{version}-root
-BuildPreReq:    /usr/bin/aclocal /usr/bin/automake /usr/bin/autoconf
+BuildRequires:  automake autoconf
 ExclusiveArch:  %{ix86} x86_64 ia64
-Obsoletes:      kernel-utils
 
 %description
 dmidecode reports information about x86 & ia64 hardware as described in the
@@ -26,17 +25,17 @@ I/O ports (e.g. serial, parallel, USB).
 
 %prep
 %setup -q
-%patch0 -p1
+%patch0 -p1 -b .smbios_fix
 
 %build
-make CFLAGS="$RPM_OPT_FLAGS"
+make %{?_smp_mflags} CFLAGS="$RPM_OPT_FLAGS"
 
 %install
-rm -rf $RPM_BUILD_ROOT
-make DESTDIR=%{buildroot} prefix=%{_prefix} install-bin install-man
+rm -rf ${buildroot}
+make %{?_smp_mflags} DESTDIR=%{buildroot} prefix=%{_prefix} install-bin install-man
 
 %clean
-rm -rf $RPM_BUILD_ROOT
+rm -rf ${buildroot}
 
 %files
 %defattr(-,root,root)
@@ -50,15 +49,63 @@ rm -rf $RPM_BUILD_ROOT
 %{_mandir}/man8/*
 
 %changelog
-* Mon Oct 10 2011 Anton Arapov <aarapov@redhat.com> - 1:2.11-2
-- Rebase to current version [744690]
+* Thu Feb 20 2014 Anton Arapov <anton@redhat.com> - 2.12-5
+- Rebuild for RHEL-6.5.z
 
-* Fri Jun 24 2011 Anton Arapov <aarapov@redhat.com> - 1:2.11-1
-- Update to version 2.11, smbios v2.7.0 [654833]
-- Update smbios to v2.7.1
+* Thu Feb 20 2014 Anton Arapov <anton@redhat.com> - 2.12-4
+- Rebuild for RHEL-6.6
 
-* Mon Nov 30 2009 Dennis Gregorovic <dgregor@redhat.com> - 1:2.10-1.29.1
-- Rebuilt for RHEL 6
+* Thu May 09 2013 Anton Arapov <anton@redhat.com> - 1:2.12-3
+- Accomodate few more necesary, to enable SMBIOS v2.8, changes from upstream.
+
+* Fri Apr 26 2013 Anton Arapov <anton@redhat.com> - 1:2.12-2
+- Fixup, so that it actually read SMBIOS 2.8.0 table.
+
+* Wed Apr 17 2013 Anton Arapov <anton@redhat.com> - 1:2.12-1
+- Update to upstream 2.12 release.
+
+* Wed Feb 13 2013 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1:2.11-10
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_19_Mass_Rebuild
+
+* Wed Jul 18 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1:2.11-9
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_18_Mass_Rebuild
+
+* Mon Mar 26 2012 Anton Arapov <anton@redhat.com> - 1:2.11-8
+- Update dmidecode.8 manpage
+
+* Mon Mar 12 2012 Anton Arapov <anton@redhat.com> - 1:2.11-7
+- Add "PXE" to HP OEM Type 209 record output
+- Properly print the hexadecimal value of invalid string characters
+
+* Fri Jan 13 2012 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1:2.11-6
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_17_Mass_Rebuild
+
+* Mon Nov 14 2011 Anton Arapov <anton@redhat.com> - 1:2.11-5
+- Fix the wrong call of the dmi_chassis_type function call. Thus fix
+  an issue on the systems with the chassis lock available, application
+  doesn't fall out with the out of spec error anymore.
+
+* Tue May 03 2011 Anton Arapov <anton@redhat.com> - 1:2.11-4
+- Update to SMBIOS 2.7.1
+- Fix the boundaries check in type16
+
+* Tue Feb 08 2011 Fedora Release Engineering <rel-eng@lists.fedoraproject.org> - 1:2.11-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_15_Mass_Rebuild
+
+* Wed Jan 19 2011 Anton Arapov <anton@redhat.com> - 1:2.11-2
+- Update to upstream 2.11 release. (#623047)
+
+* Wed Jan 19 2011 Anton Arapov <anton@redhat.com> - 1:2.11-1
+- Fix the changelog's NVR.
+
+* Mon Nov 08 2010 Prarit Bhargava <prarit@redhat.com> - 1:2.10-3
+- updated kernel.spec for review [BZ 225698]
+
+* Fri Oct 15 2010 Anton Arapov <aarapov@redhat.com> - 1:2.10-2
+- Does not build with gnu make v3.82+ (#631407)
+
+* Fri Dec 18 2009 Prarit Bhargava <prarit@redhat.com> - 1:2.10-1.40
+- Fix rpmlint errors in specfile
 
 * Fri Aug 28 2009 Jarod Wilson <jarod@redhat.com> - 1:2.10-1.39
 - Fix cache associativity mapping (was missing some commas)
