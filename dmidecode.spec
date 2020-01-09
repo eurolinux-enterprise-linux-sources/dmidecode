@@ -1,13 +1,14 @@
 Summary:        Tool to analyse BIOS DMI data
 Name:           dmidecode
 Version:        2.12
-Release:        5%{?dist}
+Release:        5%{?dist}.1
 Epoch:          1
 Group:          System Environment/Base
 License:        GPLv2+
 Source0:        %{name}-%{version}.tar.bz2
 URL:            http://www.nongnu.org/dmidecode/
 Patch0:         dmidecode-2.12-smbios_fix.patch
+Patch1:         support-for-ddr4-mem.patch
 Buildroot:      %{_tmppath}/%{name}-%{version}-root
 BuildRequires:  automake autoconf
 ExclusiveArch:  %{ix86} x86_64 ia64
@@ -26,6 +27,7 @@ I/O ports (e.g. serial, parallel, USB).
 %prep
 %setup -q
 %patch0 -p1 -b .smbios_fix
+%patch1 -p1
 
 %build
 make %{?_smp_mflags} CFLAGS="$RPM_OPT_FLAGS"
@@ -49,8 +51,13 @@ rm -rf ${buildroot}
 %{_mandir}/man8/*
 
 %changelog
-* Thu Feb 20 2014 Anton Arapov <anton@redhat.com> - 2.12-5
-- Rebuild for RHEL-6.5.z
+* Wed Jun 10 2015 Petr Oros <poros@redhat.com> - 2.12-5.1
+- Bump to right version number
+- Resolves: #1229722
+
+* Wed Jun 10 2015 Petr Oros <poros@redhat.com> - 2.12-4.1
+- Update dmidecode in RHEL 6 to support DDR4 memory
+- Resolves: #1229722
 
 * Thu Feb 20 2014 Anton Arapov <anton@redhat.com> - 2.12-4
 - Rebuild for RHEL-6.6
