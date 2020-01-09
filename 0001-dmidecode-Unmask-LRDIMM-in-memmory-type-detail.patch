@@ -1,0 +1,28 @@
+From 0915927d93ae5be2a90a13faa157e5b900825212 Mon Sep 17 00:00:00 2001
+From: Petr Oros <poros@redhat.com>
+Date: Wed, 29 Jun 2016 11:28:20 +0200
+Subject: [PATCH] dmidecode: Unmask LRDIMM in memmory type detail
+
+  For memmory with bit 15 only set show dmidecode None in type detail.
+
+Signed-off-by: Petr Oros <poros@redhat.com>
+---
+ dmidecode.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/dmidecode.c b/dmidecode.c
+index 84c18e1..48d9e66 100644
+--- a/dmidecode.c
++++ b/dmidecode.c
+@@ -2392,7 +2392,7 @@ static void dmi_memory_device_type_detail(u16 code)
+ 		"LRDIMM"  /* 15 */
+ 	};
+ 
+-	if ((code & 0x7FFE) == 0)
++	if ((code & 0xFFFE) == 0)
+ 		printf(" None");
+ 	else
+ 	{
+-- 
+2.7.3
+
