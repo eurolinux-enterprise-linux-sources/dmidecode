@@ -1,31 +1,25 @@
 Summary:        Tool to analyse BIOS DMI data
 Name:           dmidecode
-Version:        3.0
-Release:        5%{?dist}
+Version:        3.1
+Release:        2%{?dist}
 Epoch:          1
 Group:          System Environment/Base
 License:        GPLv2+
 Source0:        %{name}-%{version}.tar.xz
 URL:            http://www.nongnu.org/dmidecode/
-Patch0:         0001-Add-no-sysfs-option-description-to-h-output.patch
-Patch1:         0002-Avoid-SIGBUS-on-mmap-failure.patch
-Patch2:         0003-Fix-error-paths-in-mem_chunk.patch
-Patch3:         0004-dmidecode-Handle-OEM-specific-types-in-group-associa.patch
-Patch4:         0005-Fix-No-SMBIOS-nor-DMI-entry-point-found-on-SMBIOS3.patch
-Patch5:         0006-dmidecode-Introduce-SYS_FIRMWARE_DIR.patch
-Patch6:         0007-Let-read_file-return-the-actual-data-size.patch
-Patch7:         0008-dmidecode-Use-read_file-to-read-the-DMI-table-from-s.patch
-Patch8:         0009-dmidecode-Check-sysfs-entry-point-length.patch
-Patch9:         0010-Use-DWORD-for-Structure-table-maximum-size-in-SMBIOS.patch
-Patch10:        0001-dmidecode-Hide-irrelevant-fixup-message.patch
-Patch11:        0002-dmidecode-Unmask-LRDIMM-in-memory-type-detail.patch
-Patch12:        0003-dmidecode-Clarify-error-message-on-table-read-failur.patch
-Patch13:        0004-dmidecode-Move-error-messages-to-stderr.patch
-Patch14:        0005-Clarify-a-comment-in-dmi_memory_device_extended_size.patch
-Patch15:        0006-Prevent-static-code-analyzer-confusion.patch
-Patch16:        0007-Cygwin-is-no-longer-supported.patch
-Patch17:        0008-Only-decode-one-DMI-table.patch
-Patch18:        0009-biosdecode-Decode-Intel-Multiprocessor-entry-point.patch
+Patch0:         0001-dmidecode-Add-system-family-direct-string-option.patch
+Patch1:         0002-Goodbye-CHANGELOG-welcome-NEWS.patch
+Patch2:         0003-Fix-install-doc-target.patch
+Patch3:         0004-biosdecode-Add-option-pir-full.patch
+Patch4:         0005-biosdecode-Clean-up-the-PIR-table-output.patch
+Patch5:         0006-biosdecode-Avoid-repeating-pointer-arithmetic.patch
+Patch6:         0007-dmioem-Reflect-HPE-s-new-company-name.patch
+Patch7:         0008-dmioem-Sort-vendor-names-alphabetically.patch
+Patch8:         0009-UEFI-support-on-FreeBSD.patch
+Patch9:         0010-dmidecode-Share-common-EFI-code.patch
+Patch10:        0001-dmidecode-Fix-firmware-version-of-TPM-device.patch
+Patch11:        0002-dmioem-decode-HPE-UEFI-type-219-Misc-Features.patch
+Patch12:        0003-dmidecode-Use-lowercase-letters-for-UUID.patch
 
 Buildroot:      %{_tmppath}/%{name}-%{version}-root
 BuildRequires:  automake autoconf
@@ -44,25 +38,19 @@ I/O ports (e.g. serial, parallel, USB).
 
 %prep
 %setup -q
-%patch0 -p1 -b .no_sysfs
-%patch1 -p1 -b .avoid_sigbus
-%patch2 -p1 -b .fix_errorpaths
-%patch3 -p1 -b .oem_specific
-%patch4 -p1 -b .entry_point
-%patch5 -p1 -b .sys_firmware_dir
-%patch6 -p1 -b .return_actual
-%patch7 -p1 -b .read_file
-%patch8 -p1 -b .sysfs_entry_check
-%patch9 -p1 -b .dword
+%patch0 -p1 -b .add_system_family
+%patch1 -p1 -b .changelog_to_new
+%patch2 -p1 -b .fix_install_doc
+%patch3 -p1 -b .add_option_pir
+%patch4 -p1 -b .clean_up_pir
+%patch5 -p1 -b .avoid_repeating
+%patch6 -p1 -b .reflect_hpe
+%patch7 -p1 -b .sort_vendor_names
+%patch8 -p1 -b .uefi_support_bsd
+%patch9 -p1 -b .share_common_efi
 %patch10 -p1
 %patch11 -p1
 %patch12 -p1
-%patch13 -p1
-%patch14 -p1
-%patch15 -p1
-%patch16 -p1
-%patch17 -p1
-%patch18 -p1
 
 %build
 make %{?_smp_mflags} CFLAGS="$RPM_OPT_FLAGS -fPIE" LDFLAGS="-pie -Wl,-z,now"
@@ -75,7 +63,7 @@ make %{?_smp_mflags} DESTDIR=%{buildroot} prefix=%{_prefix} install-bin install-
 rm -rf ${buildroot}
 
 %files
-%doc AUTHORS CHANGELOG README
+%doc AUTHORS NEWS README
 %{!?_licensedir:%global license %%doc}
 %license LICENSE
 %{_sbindir}/dmidecode
@@ -87,6 +75,10 @@ rm -rf ${buildroot}
 %{_mandir}/man8/*
 
 %changelog
+* Thu Apr 26 2018 Lianbo Jiang <lijiang@redhat.com> - 1:3.1-1
+- Sync with upstream
+- Resolves: rhbz#1568227
+
 * Wed May 3 2017 Petr Oros <poros@redhat.com> - 1:3.0-5
 - Update compiler flags for hardened builds
 - Resolves: #1420763

@@ -2,7 +2,7 @@
  * Common "util" functions
  * This file is part of the dmidecode project.
  *
- *   Copyright (C) 2002-2015 Jean Delvare <jdelvare@suse.de>
+ *   Copyright (C) 2002-2017 Jean Delvare <jdelvare@suse.de>
  *
  *   This program is free software; you can redistribute it and/or modify
  *   it under the terms of the GNU General Public License as published by
@@ -89,15 +89,16 @@ int checksum(const u8 *buf, size_t len)
 }
 
 /*
- * Reads all of file, up to max_len bytes.
+ * Reads all of file from given offset, up to max_len bytes.
  * A buffer of max_len bytes is allocated by this function, and
  * needs to be freed by the caller.
  * This provides a similar usage model to mem_chunk()
  *
- * Returns pointer to buffer of max_len bytes, or NULL on error
+ * Returns pointer to buffer of max_len bytes, or NULL on error, and
+ * sets max_len to the length actually read.
  *
  */
-void *read_file(size_t max_len, const char *filename)
+void *read_file(off_t base, size_t *max_len, const char *filename)
 {
 	int fd;
 	size_t r2 = 0;
@@ -112,26 +113,34 @@ void *read_file(size_t max_len, const char *filename)
 	{
 		if (errno != ENOENT)
 			perror(filename);
-		return(NULL);
+		return NULL;
 	}
 
-	if ((p = malloc(max_len)) == NULL)
+	if (lseek(fd, base, SEEK_SET) == -1)
+	{
+		fprintf(stderr, "%s: ", filename);
+		perror("lseek");
+		p = NULL;
+		goto out;
+	}
+
+	if ((p = malloc(*max_len)) == NULL)
 	{
 		perror("malloc");
-		return NULL;
+		goto out;
 	}
 
 	do
 	{
-		r = read(fd, p + r2, max_len - r2);
+		r = read(fd, p + r2, *max_len - r2);
 		if (r == -1)
 		{
 			if (errno != EINTR)
 			{
-				close(fd);
 				perror(filename);
 				free(p);
-				return NULL;
+				p = NULL;
+				goto out;
 			}
 		}
 		else
@@ -139,7 +148,10 @@ void *read_file(size_t max_len, const char *filename)
 	}
 	while (r != 0);
 
+	*max_len = r2;
+out:
 	close(fd);
+
 	return p;
 }
 
@@ -152,6 +164,7 @@ void *mem_chunk(off_t base, size_t len, const char *devmem)
 	void *p;
 	int fd;
 #ifdef USE_MMAP
+	struct stat statbuf;
 	off_t mmoffset;
 	void *mmp;
 #endif
@@ -165,10 +178,28 @@ void *mem_chunk(off_t base, size_t len, const char *devmem)
 	if ((p = malloc(len)) == NULL)
 	{
 		perror("malloc");
-		return NULL;
+		goto out;
 	}
 
 #ifdef USE_MMAP
+	if (fstat(fd, &statbuf) == -1)
+	{
+		fprintf(stderr, "%s: ", devmem);
+		perror("stat");
+		goto err_free;
+	}
+
+	/*
+	 * mmap() will fail with SIGBUS if trying to map beyond the end of
+	 * the file.
+	 */
+	if (S_ISREG(statbuf.st_mode) && base + (off_t)len > statbuf.st_size)
+	{
+		fprintf(stderr, "mmap: Can't map beyond end of file %s\n",
+			devmem);
+		goto err_free;
+	}
+
 #ifdef _SC_PAGESIZE
 	mmoffset = base % sysconf(_SC_PAGESIZE);
 #else
@@ -199,19 +230,17 @@ try_read:
 	{
 		fprintf(stderr, "%s: ", devmem);
 		perror("lseek");
-		free(p);
-		return NULL;
+		goto err_free;
 	}
 
-	if (myread(fd, p, len, devmem) == -1)
-	{
-		free(p);
-		return NULL;
-	}
+	if (myread(fd, p, len, devmem) == 0)
+		goto out;
 
-#ifdef USE_MMAP
+err_free:
+	free(p);
+	p = NULL;
+
 out:
-#endif
 	if (close(fd) == -1)
 		perror(devmem);
 

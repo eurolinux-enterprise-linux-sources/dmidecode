@@ -1,0 +1,36 @@
+From aec83995082070c47edf394c4b7f9f17fea7fd16 Mon Sep 17 00:00:00 2001
+From: Jean Delvare <jdelvare@suse.de>
+Date: Mon, 16 Apr 2018 09:42:25 +0200
+Subject: [PATCH 3/3] dmidecode: Use lowercase letters for UUID
+
+RFC 4122 asks for letters a-f in UUID to be lowercase. Follow this
+recommendation.
+
+This closes bug #53569:
+https://savannah.nongnu.org/bugs/index.php?53569
+
+---
+ dmidecode.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/dmidecode.c b/dmidecode.c
+index a593170..d18a258 100644
+--- a/dmidecode.c
++++ b/dmidecode.c
+@@ -445,11 +445,11 @@ static void dmi_system_uuid(const u8 *p, u16 ver)
+ 	 * for older versions.
+ 	 */
+ 	if (ver >= 0x0206)
+-		printf("%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
++		printf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+ 			p[3], p[2], p[1], p[0], p[5], p[4], p[7], p[6],
+ 			p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+ 	else
+-		printf("%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%02X%02X%02X",
++		printf("%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
+ 			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7],
+ 			p[8], p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+ }
+-- 
+2.9.5
+

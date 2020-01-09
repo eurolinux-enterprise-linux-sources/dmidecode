@@ -1,0 +1,46 @@
+From 371056cc0345ba8e950f0c002a0e145a3930b39c Mon Sep 17 00:00:00 2001
+From: Jean Delvare <jdelvare@suse.de>
+Date: Mon, 17 Jul 2017 09:45:39 +0200
+Subject: [PATCH 03/10] Fix install-doc target
+
+CHANGELOG was replaced by NEWS but I forgot to update the references
+to that file.
+
+This fixes bug #51475:
+https://savannah.nongnu.org/bugs/?51475
+
+Fixes: 82a34ddbc524 ("Goodbye CHANGELOG, welcome NEWS")
+---
+ Makefile | 2 +-
+ README   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 1f54a1f..77c9310 100644
+--- a/Makefile
++++ b/Makefile
+@@ -134,7 +134,7 @@ uninstall-man :
+ install-doc :
+ 	$(INSTALL_DIR) $(DESTDIR)$(docdir)
+ 	$(INSTALL_DATA) README $(DESTDIR)$(docdir)
+-	$(INSTALL_DATA) CHANGELOG $(DESTDIR)$(docdir)
++	$(INSTALL_DATA) NEWS $(DESTDIR)$(docdir)
+ 	$(INSTALL_DATA) AUTHORS $(DESTDIR)$(docdir)
+ 
+ uninstall-doc :
+diff --git a/README b/README
+index f612b36..c87e52c 100644
+--- a/README
++++ b/README
+@@ -56,7 +56,7 @@ Each tool has a manual page, found in the "man" subdirectory. Manual pages
+ are installed by "make install". See these manual pages for command line
+ interface details and tool specific information.
+ 
+-For an history of the changes made to dmidecode, see the CHANGELOG file.
++For an history of the changes made to dmidecode, see the NEWS file.
+ 
+ If you need help, your best chances are to visit the web page (see the
+ INSTALLATION section above) or to get in touch with the developers directly.
+-- 
+2.9.5
+

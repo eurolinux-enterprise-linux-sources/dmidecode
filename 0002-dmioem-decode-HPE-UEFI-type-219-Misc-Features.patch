@@ -1,0 +1,36 @@
+From 2ba4fab210e23cc97db57217af9a6f3b35a9b666 Mon Sep 17 00:00:00 2001
+From: Jerry Hoemann <jerry.hoemann@hpe.com>
+Date: Wed, 11 Apr 2018 14:33:20 +0200
+Subject: [PATCH 2/3] dmioem: decode HPE UEFI type 219 Misc Features
+
+The incorrect "Misc Feature" bit in type 219 table was being used to
+identify that the platform is capable of booting with UEFI.
+
+For corresponding kernel change please see:
+
+	commit(c42cbe41727a)
+
+in linux.
+
+Signed-off-by: Jerry Hoemann <jerry.hoemann@hpe.com>
+Signed-off-by: Jean Delvare <jdelvare@suse.de>
+---
+ dmioem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/dmioem.c b/dmioem.c
+index 8a72ac9..1742330 100644
+--- a/dmioem.c
++++ b/dmioem.c
+@@ -268,7 +268,7 @@ static int dmi_decode_hp(const struct dmi_header *h)
+ 			feat = DWORD(data + 0x10);
+ 			printf("\tMisc. Features: 0x%08x\n", feat);
+ 			printf("\t\tiCRU: %s\n", feat & 0x0001 ? "Yes" : "No");
+-			printf("\t\tUEFI: %s\n", feat & 0x0408 ? "Yes" : "No");
++			printf("\t\tUEFI: %s\n", feat & 0x1400 ? "Yes" : "No");
+ 			break;
+ 
+ 		default:
+-- 
+2.9.5
+
