@@ -1,24 +1,18 @@
 Summary:        Tool to analyse BIOS DMI data
 Name:           dmidecode
-Version:        3.0
-Release:        2.1%{?dist}
+Version:        3.2
+Release:        3%{?dist}
 Epoch:          1
 Group:          System Environment/Base
 License:        GPLv2+
 Source0:        %{name}-%{version}.tar.xz
 URL:            http://www.nongnu.org/dmidecode/
-Patch0:         0001-Add-no-sysfs-option-description-to-h-output.patch
-Patch1:         0002-Avoid-SIGBUS-on-mmap-failure.patch
-Patch2:         0003-Fix-error-paths-in-mem_chunk.patch
-Patch3:         0004-dmidecode-Handle-OEM-specific-types-in-group-associa.patch
-Patch4:         0005-Fix-No-SMBIOS-nor-DMI-entry-point-found-on-SMBIOS3.patch
-Patch5:         0006-dmidecode-Introduce-SYS_FIRMWARE_DIR.patch
-Patch6:         0007-Let-read_file-return-the-actual-data-size.patch
-Patch7:         0008-dmidecode-Use-read_file-to-read-the-DMI-table-from-s.patch
-Patch8:         0009-dmidecode-Check-sysfs-entry-point-length.patch
-Patch9:         0010-Use-DWORD-for-Structure-table-maximum-size-in-SMBIOS.patch
-Patch10:        0001-dmidecode-Unmask-LRDIMM-in-memmory-type-detail.patch
-Patch11:        0001-dmidecode-Hide-irrelevant-fixup-message.patch
+Patch0:         0001-dmidecode-Fix-Redfish-Hostname-print-length.patch
+Patch1:         0002-dmidecode-Don-t-use-memcpy-on-dev-mem-on-arm64.patch
+Patch2:         0003-dmidecode-Use-the-most-appropriate-unit-for-cache-si.patch
+Patch3:         0004-dmidecode-Use-dmi_cache_size_2-in-dmi_cache_size.patch
+Patch4:         0005-dmidecode-Add-Logical-non-volatile-device-to-the-mem.patch
+
 Buildroot:      %{_tmppath}/%{name}-%{version}-root
 BuildRequires:  automake autoconf
 ExclusiveArch:  %{ix86} x86_64 ia64 aarch64
@@ -36,21 +30,14 @@ I/O ports (e.g. serial, parallel, USB).
 
 %prep
 %setup -q
-%patch0 -p1 -b .no_sysfs
-%patch1 -p1 -b .avoid_sigbus
-%patch2 -p1 -b .fix_errorpaths
-%patch3 -p1 -b .oem_specific
-%patch4 -p1 -b .entry_point
-%patch5 -p1 -b .sys_firmware_dir
-%patch6 -p1 -b .return_actual
-%patch7 -p1 -b .read_file
-%patch8 -p1 -b .sysfs_entry_check
-%patch9 -p1 -b .dword
-%patch10 -p1 -b .fix_lrdimm
-%patch11 -p1 -b .hide_msg
+%patch0 -p1 -b .fix_Redfish_print
+%patch1 -p1
+%patch2 -p1
+%patch3 -p1
+%patch4 -p1
 
 %build
-make %{?_smp_mflags} CFLAGS="$RPM_OPT_FLAGS"
+make %{?_smp_mflags} CFLAGS="$RPM_OPT_FLAGS -fPIE" LDFLAGS="-pie -Wl,-z,now"
 
 %install
 rm -rf ${buildroot}
@@ -60,7 +47,7 @@ make %{?_smp_mflags} DESTDIR=%{buildroot} prefix=%{_prefix} install-bin install-
 rm -rf ${buildroot}
 
 %files
-%doc AUTHORS CHANGELOG README
+%doc AUTHORS NEWS README
 %{!?_licensedir:%global license %%doc}
 %license LICENSE
 %{_sbindir}/dmidecode
@@ -72,9 +59,29 @@ rm -rf ${buildroot}
 %{_mandir}/man8/*
 
 %changelog
-* Tue Dec 6 2016 Petr Oros <poros@redhat.com> - 1:3.0-2.1
+* Fri Apr 26 2019 Lianbo Jiang <lijiang@redhat.com> - 1:3.2-3
+- Add "Logical non-volatile device" to the memory device types
+- Resolves: rhbz#1664921
+
+* Tue Nov 6 2018 Lianbo Jiang <lijiang@redhat.com> - 1:3.2-1
+- Sync with upstream 3.2
+- Resolves: rhbz#1628992
+
+* Thu Apr 26 2018 Lianbo Jiang <lijiang@redhat.com> - 1:3.1-1
+- Sync with upstream
+- Resolves: rhbz#1568227
+
+* Wed May 3 2017 Petr Oros <poros@redhat.com> - 1:3.0-5
+- Update compiler flags for hardened builds
+- Resolves: #1420763
+
+* Tue Feb 28 2017 Petr Oros <poros@redhat.com> - 1:3.0-4
+- Sync with upstream
+- Resolves: #1385884
+
+* Tue Nov 8 2016 Petr Oros <poros@redhat.com> - 1:3.0-3
 - Hide irrelevant fixup message
-- Resolves: #1401905
+- Resolves: #1384195
 
 * Wed Jun 29 2016 Petr Oros <poros@redhat.com> - 1:3.0-2
 - Unmask LRDIMM in memmory type detail

@@ -1,0 +1,53 @@
+From c43afb47fcbadabe2655fe7863a1e2ea9af1446c Mon Sep 17 00:00:00 2001
+From: Jean Delvare <jdelvare@suse.de>
+Date: Tue, 15 Jan 2019 12:59:00 +0100
+Subject: [PATCH 2/4] dmidecode: Use the most appropriate unit for cache size
+
+As newer CPUs have larger and larger cache, using kB to represent the
+cache size is getting less convenient. Reuse the same function we have
+for system memory size so that large units will be used as
+appropriate. For example, a cache size reported as "20 MB" looks nicer
+than as "20480 kB".
+
+Signed-off-by: Jean Delvare <jdelvare@suse.de>
+Acked-by: Neil Horman <nhorman@tuxdriver.com>
+---
+ dmidecode.c | 17 +++++++++++------
+ 1 file changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/dmidecode.c b/dmidecode.c
+index 7ac6438..162e0c5 100644
+--- a/dmidecode.c
++++ b/dmidecode.c
+@@ -1560,17 +1560,22 @@ static void dmi_cache_size(u16 code)
+ 
+ static void dmi_cache_size_2(u32 code)
+ {
++	u64 size;
++
+ 	if (code & 0x80000000)
+ 	{
+ 		code &= 0x7FFFFFFFLU;
+-		/* Use a more convenient unit for large cache size */
+-		if (code >= 0x8000)
+-			printf(" %u MB", code >> 4);
+-		else
+-			printf(" %u kB", code << 6);
++		size.l = code << 6;
++		size.h = code >> 26;
+ 	}
+ 	else
+-		printf(" %u kB", code);
++	{
++		size.l = code;
++		size.h = 0;
++	}
++
++	/* Use a more convenient unit for large cache size */
++	dmi_print_memory_size(size, 1);
+ }
+ 
+ static void dmi_cache_types(u16 code, const char *sep)
+-- 
+2.17.1
+

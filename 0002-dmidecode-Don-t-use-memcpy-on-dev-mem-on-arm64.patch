@@ -1,0 +1,72 @@
+From 82497fa02d60757c2cfa645cf89a79abb1435273 Mon Sep 17 00:00:00 2001
+From: Jean Delvare <jdelvare@suse.de>
+Date: Fri, 16 Nov 2018 11:18:25 +0100
+Subject: [PATCH 1/4] dmidecode: Don't use memcpy on /dev/mem on arm64
+
+On arm64, calling memcpy on /dev/mem will cause a bus error if the
+start and the end of the buffer are not aligned on a 64-bit boundary.
+Using option --no-sysfs triggers this.
+
+Use a slow manual byte-by-byte copy in that case, to prevent the bus
+error. This is only a fallback path (at least on Linux) and not
+performance-critical anyway, as it is a one-time operation and DMI
+tables are usually not too large.
+
+This fixes bug #55026:
+https://savannah.nongnu.org/bugs/index.php?55026
+
+Signed-off-by: Jean Delvare <jdelvare@suse.de>
+---
+ config.h |  5 +++++
+ util.c   | 14 +++++++++++++-
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/config.h b/config.h
+index e39091f..4237355 100644
+--- a/config.h
++++ b/config.h
+@@ -26,4 +26,9 @@
+ #define ALIGNMENT_WORKAROUND
+ #endif
+ 
++/* Avoid unaligned memcpy on /dev/mem */
++#ifdef __aarch64__
++#define USE_SLOW_MEMCPY
++#endif
++
+ #endif
+diff --git a/util.c b/util.c
+index eeffdae..04aaadd 100644
+--- a/util.c
++++ b/util.c
+@@ -155,6 +155,18 @@ void *read_file(off_t base, size_t *max_len, const char *filename)
+ 	return p;
+ }
+ 
++static void safe_memcpy(void *dest, const void *src, size_t n)
++{
++#ifdef USE_SLOW_MEMCPY
++	size_t i;
++
++	for (i = 0; i < n; i++)
++		*((u8 *)dest + i) = *((const u8 *)src + i);
++#else
++	memcpy(dest, src, n);
++#endif
++}
++
+ /*
+  * Copy a physical memory chunk into a memory buffer.
+  * This function allocates memory.
+@@ -214,7 +226,7 @@ void *mem_chunk(off_t base, size_t len, const char *devmem)
+ 	if (mmp == MAP_FAILED)
+ 		goto try_read;
+ 
+-	memcpy(p, (u8 *)mmp + mmoffset, len);
++	safe_memcpy(p, (u8 *)mmp + mmoffset, len);
+ 
+ 	if (munmap(mmp, mmoffset + len) == -1)
+ 	{
+-- 
+2.17.1
+
